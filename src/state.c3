@@ -85,7 +85,7 @@ fn State to_nfa(ParseContext* ctx)
         State start_next = states[0];
         State end_next   = states[1];
 
-        end_state.transitions.get(EPSILON_CHAR).push(&start_next)!!;
+        end_state.transitions.@get_or_set(EPSILON_CHAR, {}).push(&start_next);
         end_state = end_next;
     }
 
@@ -113,8 +113,6 @@ fn State[] token_to_nfa(Token* t)
 {
     State start;
     State end;
-
-    io::printn(*t);
 
     switch (t.token_type)
     {
@@ -150,13 +148,22 @@ fn State[] token_to_nfa(Token* t)
             StateList list;
             list.push(&end);
 
-            foreach (l : literals.keys(tmem))
+            io::printfn("map size: %d; keys size: %d", literals.len(), literals.table.len);
+
+            foreach (e : literals.table)
             {
-                start.transitions.set(l, list);
+                if (e == null)
+                {
+                    start.transitions.set(EPSILON_CHAR, list);
+                } else
+                {
+                    start.transitions.set((*e).key, list);
+                }
             }
 
             break;
         case TokenType.GROUP:
+        case TokenType.GROUP_UNCAPTURED:
             TokenList tokens = t.value.arr;
             State[] states = token_to_nfa(&tokens[0]);
             start = states[0];
@@ -172,22 +179,6 @@ fn State[] token_to_nfa(Token* t)
                 end = token_end;
             }
             break;
-//        case TokenType.GROUP_UNCAPTURED:
-//            TokenList tokens = t.value.arr;
-//                State*[] states = token_to_nfa(&tokens[0]);
-//                start = *states[0];
-//                end = *states[1];
-//
-//                for (int i = 1; i < tokens.len(); i++)
-//                {
-//                    State*[] new_states = token_to_nfa(&tokens[i]);
-//                    State* token_start = new_states[0];
-//                    State* token_end = new_states[1];
-//
-//                    end.transitions.get(EPSILON_CHAR).push(token_start)!!;
-//                    end = *token_end;
-//                }
-//            break;
         case TokenType.REPEAT:
             RepeatPayload p = t.value.rep;
 
@@ -218,7 +209,8 @@ fn State[] token_to_nfa(Token* t)
             State[] range = token_to_nfa(p.token);
             State from = range[0];
             State to = range[1];
-            start.transitions.get(EPSILON_CHAR).push(&from)!!;
+
+            start.transitions.@get_or_set(EPSILON_CHAR, {});
 
             for (int i = 2; i <= copy_count; i++)
             {
@@ -237,11 +229,11 @@ fn State[] token_to_nfa(Token* t)
                 }
             }
 
-            to.transitions.get(EPSILON_CHAR).push(&end)!!;
+            to.transitions.@get_or_set(EPSILON_CHAR, {}).push(&end);
 
             if (p.max == REPEAT_INFINITY)
             {
-                end.transitions.get(EPSILON_CHAR).push(&from)!!;
+                end.transitions.@get_or_set(EPSILON_CHAR, {}).push(&from);
             }
 
             break;

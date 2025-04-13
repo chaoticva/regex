@@ -5,6 +5,7 @@ import std::collections::map;
 import std::core::dstring;
 import std::core::string;
 import std::io;
+import std::os;
 
 alias StringList = List { String };
 
@@ -31,36 +32,34 @@ fn void process(String regex, ParseContext* ctx)
 {
     char ch = regex[ctx.pos];
 
-    if (ch == '(')
+    switch (ch)
     {
-        ParseContext group_ctx =
-        {
-            .pos = ctx.pos
-        };
+        case '(':
+            ParseContext group_ctx =
+            {
+                .pos = ctx.pos
+            };
 
-        parse_group(regex, &group_ctx);
-        ctx.tokens.push({
-            .token_type = TokenType.GROUP,
-            .value      = { .arr = group_ctx.tokens }
-        });
-    } else if (ch == '[')
-    {
-        parse_bracket(regex, ctx);
-    } else if (ch == '|')
-    {
-         parse_or(regex, ctx);
-    } else if (ch == '*' || ch == '?' || ch == '+')
-    {
-         parse_repeat(regex, ctx);
-    } else if (ch == '{')
-    {
-         parse_repeat_specified(regex, ctx);
-    } else
-    {
-        ctx.tokens.push({
-            .token_type = TokenType.LITERAL,
-            .value      = { .ch = ch }
-        });
+            parse_group(regex, &group_ctx);
+            ctx.tokens.push({
+                .token_type = TokenType.GROUP,
+                .value      = { .arr = group_ctx.tokens }
+            });
+        case '[':
+            parse_bracket(regex, ctx);
+        case '|':
+            parse_or(regex, ctx);
+        case '*':
+        case '?':
+        case '+':
+            parse_repeat(regex, ctx);
+        case '{':
+            parse_repeat_specified(regex, ctx);
+        default:
+            ctx.tokens.push({
+                .token_type = TokenType.LITERAL,
+                .value      = { .ch = ch }
+            });
     }
 }
 
@@ -98,7 +97,7 @@ fn void parse_bracket(String regex, ParseContext* ctx)
         ctx.pos++;
     }
 
-    HashMap { char, bool } literals_set;
+    LiteralMap literals_set;
 
     foreach (l : literals)
     {
@@ -196,24 +195,53 @@ fn void parse_repeat_specified(String regex, ParseContext* ctx)
     String[] pieces = boundaries_str.tsplit(",");
     int min, max;
 
-    if (pieces.len != 0)
+    if (pieces.len == 1)
     {
-        min = pieces[0].to_integer(int)!!;
+        int value = pieces[0].to_int()!!;
+        min = max = value;
+    } else if (pieces.len == 2)
+    {
+        int value = pieces[0].to_int()!!;
+        min = value;
 
-        if (pieces.len > 1)
+        if (pieces[1].trim() == "}")
         {
-            if (pieces[1] == "")
-            {
-                max = min;
-            } else
-            {
-                max = pieces[1].to_integer(int)!!;
-            }
+            max = REPEAT_INFINITY;
         } else
         {
-            max = min;
+            io::printn(pieces[1]);
+            int value2 = pieces[1].to_int()!!;
+            max = value2;
         }
+    } else
+    {
+        io::eprintfn("There must be either 1 or 2 values specified for the quantifier: provided '%s'", boundaries_str);
+        os::exit(1);
     }
+
+//    if (pieces.len != 0)
+//    {
+//        min = pieces[0].to_integer(int)!!;
+//
+//        if (pieces.len == 1)
+//        {
+//
+//        }
+//
+//        if (pieces.len > 1)
+//        {
+//            if (pieces[1] == "")
+//            {
+//                max = min;
+//            } else
+//            {
+//                max = pieces[1].to_integer(int)!!;
+//            }
+//        } else
+//        {
+//            max = min;
+//        }
+//    }
 
     Token last_token = ctx.tokens.last()!!;
 
