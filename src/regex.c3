@@ -183,25 +183,6 @@ fn void parse_repeat(String regex, ParseContext* ctx)
     });
 }
 
-<*
-  @param start : "the start index"
-  @param end   : "the end index"
-  @ensure start >= 0
-  @ensure end < self.len
-  @return "the substring in the given range"
-*>
-fn String String.substring(&self, int start, int end)
-{
-    DString sub;
-
-    for (int i = start; i < end; i++)
-    {
-        sub.append_char((*self)[i]);
-    }
-
-    return sub.str_view();
-}
-
 fn void parse_repeat_specified(String regex, ParseContext* ctx)
 {
     int start = ctx.pos + 1;
@@ -211,7 +192,7 @@ fn void parse_repeat_specified(String regex, ParseContext* ctx)
         ctx.pos++;
     }
 
-    String boundaries_str = regex.substring(start, ctx.pos);
+    String boundaries_str = regex[start..ctx.pos];
     String[] pieces = boundaries_str.tsplit(",");
     int min, max;
 
